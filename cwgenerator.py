@@ -205,7 +205,7 @@ class CW_Generator:
             key_signal = [1] * self.dit_duration
             key_signal.extend([0]*self.dit_duration)
             cw_signal = self.continouswave(self.lowpassfilter(key_signal))
-            self.cache['dit'] = cw_signal
+            self.cache['dit'] = self.pack(cw_signal)
         return self.cache['dit']
 
     def dah(self):
@@ -219,7 +219,7 @@ class CW_Generator:
             key_signal = [1] * 3 * self.dit_duration
             key_signal.extend([0]*self.dit_duration)
             cw_signal = self.continouswave(self.lowpassfilter(key_signal))
-            self.cache['dah'] = cw_signal
+            self.cache['dah'] = self.pack(cw_signal)
         return self.cache['dah']
 
     def char_space(self):
@@ -227,42 +227,51 @@ class CW_Generator:
            silence for 2 dit durations
            (it's actually 3, but we remove the
            one duration included in each dit/dah)"""
-        return [0] * 2 * self.dit_duration
+
+        if 'char_space' not in self.cache:
+            self.cache['char_space'] = self.pack([0] * 2 * self.dit_duration)
+        return self.cache['char_space']
 
     def word_space(self):
         """Create a keyed signal for:
            silence for 6 dit durations
            (it's actually 7, but we remove the
            one duration included in each dit/dah)"""
-        return [0] * 6 * self.dit_duration
+
+        if 'word_space' not in self.cache:
+            self.cache['word_space'] = self.pack([0] * 6 * self.dit_duration)
+        return self.cache['word_space']
 
     def encode(self, text):
         """Encode text to cw signal"""
-        signal = []
+        signal = ''
         for word in text.split():
             for char in word:
                 for d in morsecode[char]:
                     if d == '.':
-                        signal.extend(self.dit())
+                        signal += self.dit()
                     elif d == '-':
-                        signal.extend(self.dah())
+                        signal += self.dah()
                 # End character with char_space:
-                signal.extend(self.char_space())
+                signal += self.char_space()
             # End word with word_space:
-            signal.extend(self.word_space())
+            signal += self.word_space()
         return signal
             
+    def pack(self, signal):
+        """Pack signal values into binary string"""
+        packed_signal = ''
+        for smpl in signal:
+            packed_signal += struct.pack('h',smpl) # transform to binary
+        return packed_signal
 
     def play(self, signal):
         """Save signal as a wave file and play it"""
         # TODO: use StringIO instead of file, and play it from memory
         file = wave.open('test.wav', 'wb')
         file.setparams((1, 2, self.samplerate, len(signal), 'NONE', 'noncompressed'))
-        ssignal = ''
-        for smpl in signal:
-            ssignal += struct.pack('h',smpl) # transform to binary
 
-        file.writeframes(ssignal)
+        file.writeframes(signal)
         file.close()
         winsound.PlaySound('test.wav', winsound.SND_FILENAME)
 
