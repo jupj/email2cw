@@ -4,6 +4,9 @@ import wave
 import struct
 import winsound
 import StringIO
+import imaplib
+import re
+from getpass import getpass
 
 morsecode = {
     '!': '..--.',
@@ -277,7 +280,29 @@ class CW_Generator:
         winsound.PlaySound(wavobj.getvalue(), winsound.SND_MEMORY)
         wavobj.close()
 
+def testimap():
+    m = imaplib.IMAP4_SSL('imap.gmail.com')
+    user = raw_input('User name: ')
+    pwd = getpass('Password: ')
+    m.login(user, pwd)
+    m.select('INBOX', readonly=True)
+    res, data = m.search(None, 'UNSEEN')
+    msg_ids = data[0]
+    for id in msg_ids.split():
+        res, data = m.fetch(id, '(BODY[HEADER.FIELDS (SUBJECT FROM DATE)])')
+        header = data[0][1]
+        #name, email = re.search(r'From:\s*(?P<name>.*?)\s*<(?P<email>.*?)>', header).groups()
+        subject = re.search(r'Subject:\s*(?P<subject>.*?)\s*$', header, re.M).group(1)
+        #date = re.search(r'Date:\s*(?P<date>\d+\s*[A-Za-z]+\s*\d+)\s*', header, re.M).group(1)  
+        print 'Subject: %s' % subject
+        #print name, email, date
+    m.close()
+    m.logout()
+
 if __name__ == '__main__':
+    """
     cw = CW_Generator(samplerate=441000, wpm=25)
     signal = cw.encode('hello world')
     cw.play(signal)
+    """
+    testimap()
