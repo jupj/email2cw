@@ -3,6 +3,7 @@ import math
 import wave
 import struct
 import winsound
+import StringIO
 
 morsecode = {
     '!': '..--.',
@@ -266,14 +267,15 @@ class CW_Generator:
         return packed_signal
 
     def play(self, signal):
-        """Save signal as a wave file and play it"""
-        # TODO: use StringIO instead of file, and play it from memory
-        file = wave.open('test.wav', 'wb')
-        file.setparams((1, 2, self.samplerate, len(signal), 'NONE', 'noncompressed'))
+        """Save signal as a wave object and play it"""
+        wavobj = StringIO.StringIO()
+        wavfile = wave.open(wavobj, 'wb')
+        wavfile.setparams((1, 2, self.samplerate, len(signal), 'NONE', 'noncompressed'))
 
-        file.writeframes(signal)
-        file.close()
-        winsound.PlaySound('test.wav', winsound.SND_FILENAME)
+        wavfile.writeframes(signal)
+        wavfile.close()
+        winsound.PlaySound(wavobj.getvalue(), winsound.SND_MEMORY)
+        wavobj.close()
 
 if __name__ == '__main__':
     cw = CW_Generator(samplerate=441000, wpm=25)
