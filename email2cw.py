@@ -290,12 +290,12 @@ def testimap():
     msg_ids = data[0]
     for id in msg_ids.split():
         res, data = m.fetch(id, '(BODY[HEADER.FIELDS (SUBJECT FROM DATE)])')
-        header = data[0][1]
-        #name, email = re.search(r'From:\s*(?P<name>.*?)\s*<(?P<email>.*?)>', header).groups()
-        subject = re.search(r'Subject:\s*(?P<subject>.*?)\s*$', header, re.M).group(1)
-        #date = re.search(r'Date:\s*(?P<date>\d+\s*[A-Za-z]+\s*\d+)\s*', header, re.M).group(1)  
-        print 'Subject: %s' % subject
-        #print name, email, date
+        headerstr = data[0][1]
+        header = {}
+        header.update(re.search(r'From:\s*(?P<name>.*?)\s*<(?P<email>.*?)>\s*$', headerstr, re.M).groupdict())
+        header.update(re.search(r'Subject:\s*(?P<subject>.*?)\s*$', headerstr, re.M).groupdict())
+        header.update(re.search(r'Date:\s*(?P<date>.*?)\s*$', headerstr, re.M).groupdict())
+        print header
     m.close()
     m.logout()
 
