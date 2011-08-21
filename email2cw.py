@@ -280,24 +280,48 @@ class CW_Generator:
         winsound.PlaySound(wavobj.getvalue(), winsound.SND_MEMORY)
         wavobj.close()
 
-def testimap():
-    m = imaplib.IMAP4_SSL('imap.gmail.com')
-    user = raw_input('User name: ')
-    pwd = getpass('Password: ')
-    m.login(user, pwd)
-    m.select('INBOX', readonly=True)
-    res, data = m.search(None, 'UNSEEN')
-    msg_ids = data[0]
-    for id in msg_ids.split():
-        res, data = m.fetch(id, '(BODY[HEADER.FIELDS (SUBJECT FROM DATE)])')
-        headerstr = data[0][1]
-        header = {}
-        header.update(re.search(r'From:\s*(?P<name>.*?)\s*<(?P<email>.*?)>\s*$', headerstr, re.M).groupdict())
-        header.update(re.search(r'Subject:\s*(?P<subject>.*?)\s*$', headerstr, re.M).groupdict())
-        header.update(re.search(r'Date:\s*(?P<date>.*?)\s*$', headerstr, re.M).groupdict())
-        print header
-    m.close()
-    m.logout()
+class EmailChecker:
+    """Checks an e-mail account for new emails and retreives the headers"""
+
+    def __init__(self, imapserver, user, pwd):
+        """Initialize the connection to the IMAP server"""
+        self.conn = imaplib.IMAP4_SSL(imapserver)
+        self.conn.login(user, pwd)
+        self.messages = {}
+
+    def check(self, mailbox='INBOX'):
+        """Checks for new messages in the mailbox, returns the headers"""
+        
+        newmessages = {}
+        header_regexes = (re.compile(r'From:\s*(?P<name>.*?)\s*<(?P<email>.*?)>\s*$', re.M),
+                          re.compile(r'Subject:\s*(?P<subject>.*?)\s*$', re.M),
+                          re.compile(r'Date:\s*(?P<date>.*?)\s*$', re.M),
+                          )
+
+        self.conn.select(mailbox, readonly=True)
+        try:
+            res, data = self.conn.search(None, 'UNSEEN')
+            msg_ids = data[0]
+            for id in msg_ids.split():
+                # Have we processed this message already?
+                if id not in self.messages:
+                    res, data = self.conn.fetch(id, '(BODY[HEADER.FIELDS (SUBJECT FROM DATE)])')
+                    headerstr = data[0][1]
+                    header = {}
+                    for regex in header_regexes:
+                        res = regex.search(headerstr)
+                        if res:
+                            header.update(res.groupdict())
+                    newmessages[id] = header
+        finally:
+            self.conn.close()
+
+        self.messages.update(newmessages)
+        return newmessages
+
+    def __del__(self):
+        # Logout from the IMAP server:
+        self.conn.logout()
 
 if __name__ == '__main__':
     """
@@ -305,4 +329,11 @@ if __name__ == '__main__':
     signal = cw.encode('hello world')
     cw.play(signal)
     """
-    testimap()
+    imapserver = 'imap.gmail.com'
+    user = raw_input('User name: ')
+    pwd = getpass('Password: ')
+    ec = EmailChecker(imapserver, user, pwd)
+    print ec.check()
+    print '----------------'
+    # This should be empty (unless you got an e-mail just now):
+    print ec.check()
